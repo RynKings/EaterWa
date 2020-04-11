@@ -1,4 +1,5 @@
 from eaterwa import *
+from eaterwa.client import Json2Object
 
 import re
 import json
@@ -19,11 +20,11 @@ settings = {
 
 wa = EaterWa(auth)
 wa.login()
-profile = wa.getMe().json()
+profile = wa.getMe()
 
 start = time.time()
 
-myId = profile['me']
+myId = profile.me
 
 def process_message(cmd, text, txt, to, sender, message, msg_id):
     if txt == 'tag':
@@ -32,13 +33,13 @@ def process_message(cmd, text, txt, to, sender, message, msg_id):
     elif txt == 'status':
         wa.sendReply(msg_id, 'Alive Gan')
     elif txt == 'battery':
-        battery = wa.getBatteryLevel().json()
+        battery = wa.getBatteryLevel()
         wa.sendMessage(to, battery['result'])
     elif txt == 'me':
         nomer = sender.replace('@c.us','')
         wa.sendMention(to, '@' + nomer, [sender])
         try:
-            wa.sendContact(to, sender).json()
+            wa.sendContact(to, sender)
         except:
             try:name = str(message['sender']['formattedName'])
             except:name = "Hai Sayang <3"
@@ -54,7 +55,7 @@ def process_message(cmd, text, txt, to, sender, message, msg_id):
         sep = text.split(" ")
         textnya = text.replace(sep[0] + " ","")
         result = requests.get("https://api.haipbis.xyz/searchqurdis?q={}".format(textnya))
-        data = result.json()
+        data = result
         ret_ = "╭──[ TOPIK AL-QUR'AN & HADITS ]"
         ret_ += "\n├⌬ Ayat Qur'an : "+str(data[0]['quran/hadis'])
         ret_ += "\n├⌬ Sumber : "+str(data[0]['link'])
@@ -88,7 +89,7 @@ def process_message(cmd, text, txt, to, sender, message, msg_id):
         wa.sendMessage(to, ret_)
     elif txt.startswith('corona '):
         textt = text.replace(text.split(' ')[0] + ' ', '')
-        r=requests.get("https://api.kawalcorona.com/indonesia/provinsi").json()
+        r=requests.get("https://api.kawalcorona.com/indonesia/provinsi")
         for atr in r:
             data = atr['attributes']
             if data['Provinsi'].lower() == textt:
@@ -113,7 +114,7 @@ def process_message(cmd, text, txt, to, sender, message, msg_id):
 
 def fetch():
     try:
-        unread = wa.getUnread().json()
+        unread = wa.getUnread()
         try:
             if unread['result'] == []:
                 return []
@@ -122,18 +123,21 @@ def fetch():
                     for contact in unread['result']:
                         try:
                             for message in contact['messages']:
-                                return message
+                                return Json2Object(message)
                         except Exception as e:
                             print('Error : ' + str(e))
                             print(traceback.format_exc())
+                            sys.exit('Bye!!')
                             return []
                 except Exception as e:
                     print('Error : ' + str(e))
                     print(traceback.format_exc())
+                    sys.exit('Bye!!')
                     return []
         except Exception as e:
             print('Error : ' + str(e))
             print(traceback.format_exc())
+            sys.exit('Bye!!')
             return []
     except Exception as e:
         print('Error : ' + str(e))
