@@ -6,8 +6,6 @@ import re
 import urllib
 import traceback
 
-from collections import namedtuple
-
 def loggedIn(func):
     def checkLogin(*args, **kwargs):
         if args[0].isLogin:
