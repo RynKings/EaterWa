@@ -4,6 +4,9 @@ import os
 import shutil
 import re
 import urllib
+import traceback
+
+from collections import namedtuple
 
 def loggedIn(func):
     def checkLogin(*args, **kwargs):
@@ -12,6 +15,39 @@ def loggedIn(func):
         else:
             print('You want to call the function, you must login to Whatsapp')
     return checkLogin
+
+# class Json2Object:
+
+class Json2Object(object):
+    def __init__(self, d):
+        if type(d) is str:
+            d = json.loads(d)
+
+        self.from_dict(d)
+
+    def from_dict(self, d):
+        self.__dict__ = {}
+        for key, value in d.items():
+            if type(value) is dict:
+                value = Json2Object(value)
+            self.__dict__[key] = value
+
+    def to_dict(self):
+        d = {}
+        for key, value in self.__dict__.items():
+            if type(value) is Json2Object:
+                value = value.to_dict()
+            d[key] = value
+        return d
+
+    def __repr__(self):
+        return json.dumps(self.to_dict(), indent=4, sort_keys=True)
+
+    def __setitem__(self, key, value):
+        self.__dict__[key] = value
+
+    def __getitem__(self, key):
+        return self.__dict__[key]
 
 class EaterWa(object):
 
@@ -28,37 +64,46 @@ class EaterWa(object):
             raise Exception('Invalid Authentication !!!')
 
     def login(self):
-        if self.getClient().json()['status'] == 406:
+        getCl = self.getClient()
+        if getCl.status == 406:
             raise Exception('Invalid Headers !!!')
-        qr = self.getQr().json()
+        qr = self.getQr()
         try:
-            print('Scan this QR : ', qr['result']['qr-callback'])
+            print('Scan this QR : ', qr.result['qr-callback'])
         except:
             print('Trying to login...')
 
         try:
-            callback = self.getContent(qr['result']['callback'])
-        except:
+            callback = self.j2o(self.getContent(qr.result.callback))
+        except Exception as e:
+            print(traceback.format_exc())
             raise Exception('Check your connection on your android or run again this program')
 
-        if callback.json()['result'] == 'LoggedIn':
+        if callback.result == 'LoggedIn':
             self.isLogin = True
-            profile = self.getMe().json()
+            profile = self.getMe()
             res = 'Login success !!!'
-            res += '\nName : {} '.format(profile['pushname'])
-            res += '\nWId : {}'.format(profile['me'])
-            res += '\nBattery : {}'.format(profile['battery'])
+            res += '\nName : {} '.format(profile.pushname)
+            res += '\nWId : {}'.format(profile.me)
+            res += '\nBattery : {}'.format(profile.battery)
             res += '\n========================'
-            res += '\nPhone Name : {}'.format(profile['phone']['device_manufacturer'])
-            res += '\nPhone model : {}'.format(profile['phone']['device_model'])
-            res += '\nPhone OS Version : {}'.format(profile['phone']['os_version'])
-            res += '\nWhatsapp Version : {}'.format(profile['phone']['wa_version'])
+            res += '\nPhone Name : {}'.format(profile.phone.device_manufacturer)
+            res += '\nPhone model : {}'.format(profile.phone.device_model)
+            res += '\nPhone OS Version : {}'.format(profile.phone.os_version)
+            res += '\nWhatsapp Version : {}'.format(profile.phone.wa_version)
             print(res)
             return True
         else:
             self.isLogin = False
-            print(callback.json()['result'])
+            print(callback.result)
             return False
+
+    def j2o(self, text):
+        try:
+            _dict = text.text
+            return Json2Object(_dict)
+        except Exception as e:
+            raise Exception("Error : {}\n\nResponse : {}".format(str(e), text.text))
 
     def urlEncode(self, url, path, params=[]):
         return url + path + '?' + urllib.parse.urlencode(params)
@@ -83,18 +128,18 @@ class EaterWa(object):
     def getClient(self):
         url = self.host + '/client'
         a = self.getContent(url)
-        return a
+        return self.j2o(a)
 
     def getQr(self):
         url = self.host + '/login'
         a = self.getContent(url)
-        return a
+        return self.j2o(a)
 
     @loggedIn
     def getMe(self):
         url = self.host + '/getMe'
         a = self.getContent(url)
-        return a
+        return self.j2o(a)
 
     @loggedIn
     def getUnread(self, me=True, notif=True):
@@ -103,25 +148,34 @@ class EaterWa(object):
             'include_notifications': notif
         }
         req = self.postContent(self.host + '/unread', data=data)
-        return req
+        return self.j2o(req)
+
+    @loggedIn
+    def getContact(self, userid):
+        url = self.host + '/getContact'
+        data = {
+            'userid': userid
+        }
+        req = self.postContent(url, data=data)
+        return self.j2o(req)
 
     @loggedIn
     def getContacts(self):
         url = self.host + '/getContacts'
         a = self.getContent(url)
-        return a
+        return self.j2o(a)
 
     @loggedIn
     def getMyContacts(self):
         url = self.host + '/getMyContacts'
         a = self.getContent(url)
-        return a
+        return self.j2o(a)
 
     @loggedIn
     def getWaVersion(self):
         url = self.host + '/getWaVersion'
         a = self.getContent(url)
-        return a
+        return self.j2o(a)
 
     @loggedIn
     def getGroupLink(self, to):
@@ -130,7 +184,7 @@ class EaterWa(object):
             'chat_id': to
         }
         a = self.postContent(url, data=data)
-        return a
+        return self.j2o(a)
 
     @loggedIn
     def revokeGroupLink(self, to):
@@ -139,7 +193,7 @@ class EaterWa(object):
             'chat_id': to
         }
         a = self.postContent(url, data=data)
-        return a
+        return self.j2o(a)
 
     @loggedIn
     def simulateTyping(self, to, on):
@@ -149,7 +203,7 @@ class EaterWa(object):
             'on': on
         }
         a = self.postContent(url, data=data)
-        return a
+        return self.j2o(a)
 
     @loggedIn
     def sendMessage(self, to, text):
@@ -161,7 +215,7 @@ class EaterWa(object):
         self.simulateTyping(to, True)
         req = self.postContent(url, data=data)
         self.simulateTyping(to, False)
-        return req
+        return self.j2o(req)
 
     @loggedIn
     def sendMessageV2(self, to, text, metadata={}):
@@ -174,7 +228,7 @@ class EaterWa(object):
         self.simulateTyping(to, True)
         req = self.postContent(url, data=data)
         self.simulateTyping(to, False)
-        return req
+        return self.j2o(req)
 
     @loggedIn
     def sendMention(self, to, text, userids=[]):
@@ -187,7 +241,7 @@ class EaterWa(object):
         self.simulateTyping(to, True)
         req = self.postContent(url, data=data)
         self.simulateTyping(to, False)
-        return req
+        return self.j2o(req)
 
     @loggedIn
     def sendMedia(self, to, path, caption='', metadata={}, mentionedJidList=[]):
@@ -205,7 +259,7 @@ class EaterWa(object):
         }
         files ={'files': open(path,'rb')}
         req = self.postContent(url, data=data, files=files)
-        return req
+        return self.j2o(req)
 
     @loggedIn
     def sendContact(self, to, user_id):
@@ -215,7 +269,7 @@ class EaterWa(object):
             'user_id': user_id
         }
         req = self.postContent(url, data=data)
-        return req
+        return self.j2o(req)
 
     @loggedIn
     def sendVcard(self, to, displayName, vcard):
@@ -226,7 +280,7 @@ class EaterWa(object):
             'vcard': vcard
         }
         req = self.postContent(url, data=data)
-        return req
+        return self.j2o(req)
 
     @loggedIn
     def sendMediaWithURL(self, to, url, filename, caption='', metadata={}):
@@ -242,7 +296,7 @@ class EaterWa(object):
             'chat_id': to
         }
         req = self.postContent(url, data=data)
-        return req
+        return self.j2o(req)
 
     @loggedIn
     def sendReply(self, message_id, text):
@@ -252,13 +306,13 @@ class EaterWa(object):
             'message': text
         }
         req = self.postContent(url, data=data)
-        return req
+        return self.j2o(req)
 
     @loggedIn
     def getBatteryLevel(self):
         url = self.host + '/getBatteryLevel'
         req = self.getContent(url)
-        return req
+        return self.j2o(req)
 
     @loggedIn
     def getGroupParticipantsIds(self, to):
@@ -267,22 +321,22 @@ class EaterWa(object):
             'group_id': to
         }
         req = self.postContent(url, data=data)
-        return req
+        return self.j2o(req)
 
     @loggedIn
     def revoke(self):
         url = self.host + '/revoke'
         req = self.getContent(url, params=self.headers)
-        return req
+        return self.j2o(req)
 
     @loggedIn
     def mentionAll(self, message):
         to = message['chatId']
-        myId = self.getMe().json()['me']
+        myId = self.getMe().me
         if message['chat']['isGroup']:
             result = '╭───「 Mention Members 」\n'
             no = 0
-            members = self.getGroupParticipantsIds(message['chatId']).json()['result']
+            members = self.getGroupParticipantsIds(message['chatId']).result
             if myId in members:
                 members.remove(myId)
             for member in members:
