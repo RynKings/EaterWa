@@ -45,7 +45,7 @@ def process_message(cmd, text, txt, to, sender, message, msg_id):
             except:name = "Hai Sayang <3"
             wa.sendVcard(to, name, "BEGIN:VCARD\nVERSION:3.0\nN:;{};;;\nFN:{}\nTEL;type=CELL;waid={}:{}\nEND:VCARD".format(name, name, nomer, nomer))
     elif txt == 'author pict':
-        wa.sendMediaWithURL(to, 'https://i.ibb.co/dBsw1Xf/photo-2019-10-28-18-07-44.jpg', 'pict.jpg', caption='Test test')
+        wa.sendMediaWithURL(to, 'link', 'pict.jpg', caption='Test test')
     elif txt == 'revoke login':
       if sender == myId:
         wa.sendMessage(to, 'revoked!!!')
